@@ -1,0 +1,9 @@
+{
+  "name": "ai-fortune-teller",
+  "version": "1.0.0",
+  "description": "AI Fortune Teller Application",
+  "scripts": {
+    "build": "cd frontend && npm run build && cd ../backend && npm install --production",
+    "start": "cd backend && NODE_ENV=production node server.js"
+  }
+} 
