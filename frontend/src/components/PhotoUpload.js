@@ -7,6 +7,8 @@ import { Upload, message, Spin } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import AnalysisResult from './AnalysisResult';
+import 'antd/dist/antd.css'; // 导入antd样式
+import './PhotoUpload.css'; // 导入自定义样式
 
 /**
  * 配置常量
