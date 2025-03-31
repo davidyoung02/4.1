@@ -1,9 +1,20 @@
 [build]
-  base = "frontend"
-  command = "npm run build"
-  publish = "build"
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/build"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["netlify/functions/**"]
+
+[[redirects]]
+  from = "/.netlify/functions/upload"
+  to = "/.netlify/functions/upload"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
-  status = 200 
+  status = 200
+  force = true 

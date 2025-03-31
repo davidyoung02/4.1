@@ -50,8 +50,9 @@ const PhotoUpload = () => {
     }
 
     // 检查文件大小
-    if (file.size > 20 * 1024 * 1024) {
-      setError('文件大小不能超过20MB');
+    const maxSize = parseInt(process.env.REACT_APP_MAX_FILE_SIZE || 20) * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError(`文件大小不能超过${process.env.REACT_APP_MAX_FILE_SIZE || 20}MB`);
       return;
     }
 
@@ -62,27 +63,42 @@ const PhotoUpload = () => {
     formData.append('photo', file);
 
     try {
-      const response = await axios.post(`${API_URL}/api/upload`, formData, {
+      // 添加调试信息
+      console.log('环境变量:', {
+        API_URL,
+        NODE_ENV: process.env.NODE_ENV,
+        REACT_APP_API_URL: process.env.REACT_APP_API_URL
+      });
+      
+      const response = await axios.post(`${API_URL}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: 30000, // 30秒超时
+        timeout: 30000,
+        // 添加错误处理配置
+        validateStatus: function (status) {
+          return status >= 200 && status < 500; // 默认值
+        }
       });
+
+      console.log('服务器响应:', response);
       
       if (response.data.result) {
         setAnalysisResult(response.data.result);
       } else {
-        setError('分析结果获取失败');
+        throw new Error(response.data.error || '分析结果获取失败');
       }
     } catch (err) {
       console.error('上传错误:', err);
       if (err.response) {
         // 服务器返回的错误信息
-        setError(err.response.data.error || '上传失败，请重试');
+        setError(err.response.data.error || `上传失败 (${err.response.status})`);
       } else if (err.code === 'ECONNABORTED') {
         setError('上传超时，请重试');
+      } else if (err.code === 'ERR_NETWORK') {
+        setError(`无法连接到服务器 (${API_URL})，请检查网络连接`);
       } else {
-        setError('网络错误，请检查网络连接');
+        setError(err.message || '上传失败，请稍后重试');
       }
     } finally {
       setLoading(false);
