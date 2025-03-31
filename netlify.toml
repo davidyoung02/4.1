@@ -1,23 +1,30 @@
+# Netlify配置文件
+# 构建配置
 [build]
   base = ""
   command = "cd frontend && npm install && npm run build"
   publish = "frontend/build"
   functions = "netlify/functions"
 
+# 环境变量
 [build.environment]
   NODE_ENV = "production"
   CI = "false"
 
+# 构建处理
 [build.processing]
   skip_processing = false
 
+# 函数配置
 [functions]
   node_bundler = "esbuild"
   included_files = ["netlify/functions/**"]
 
+# 插件配置
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
 
+# API代理配置
 [[redirects]]
   from = "/api/*"
   to = "https://aifacetest11.netlify.app/api/:splat"
@@ -25,12 +32,14 @@
   force = true
   [redirects.headers]
     X-From = "Netlify"
-    Access-Control-Allow-Origin = "https://aifae.netlify.app"
+    Access-Control-Allow-Origin = "https://67ea833357ba7e0008385537--aifae.netlify.app"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Credentials = "true"
     Access-Control-Max-Age = "86400"
+    Vary = "Origin"
 
+# 静态资源重定向
 [[redirects]]
   from = "/static/*"
   to = "/static/:splat"
@@ -41,12 +50,14 @@
   to = "/manifest.json"
   status = 200
 
+# 客户端路由重定向
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = true
 
+# 全局安全头
 [[headers]]
   for = "/*"
   [headers.values]
@@ -56,16 +67,20 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self' https://aifae.netlify.app https://aifacetest11.netlify.app; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://aifacetest11.netlify.app;"
 
+# API路径CORS配置
 [[headers]]
   for = "/api/*"
   [headers.values]
-    Access-Control-Allow-Origin = "https://aifae.netlify.app"
+    Access-Control-Allow-Origin = "https://67ea833357ba7e0008385537--aifae.netlify.app"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Credentials = "true"
     Access-Control-Max-Age = "86400"
+    Vary = "Origin"
 
+# 静态资源缓存配置
 [[headers]]
   for = "/static/*"
   [headers.values]

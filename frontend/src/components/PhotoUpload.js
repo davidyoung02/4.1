@@ -2,39 +2,64 @@
  * @fileoverview 照片上传组件
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
 import AnalysisResult from './AnalysisResult';
 
 /**
- * API配置
- * @constant {string} API_URL - API基础路径
- * @constant {number} UPLOAD_TIMEOUT - 上传超时时间（毫秒）
+ * 常量配置
+ * @constant {Object} CONFIG - 组件配置
  */
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://aifacetest11.netlify.app/api'  // 生产环境使用完整URL
-  : '/api';  // 开发环境使用相对路径
-const UPLOAD_TIMEOUT = 30000;
+const CONFIG = {
+  API_URL: process.env.NODE_ENV === 'production' 
+    ? 'https://aifacetest11.netlify.app/api'
+    : '/api',
+  UPLOAD_TIMEOUT: 30000,
+  MAX_FILE_SIZE: parseInt(process.env.REACT_APP_MAX_FILE_SIZE || 20) * 1024 * 1024,
+  ALLOWED_FILE_TYPES: ['image/jpeg', 'image/png', 'image/gif'],
+  DEBUG: process.env.NODE_ENV === 'development'
+};
 
-// 配置axios默认值
+/**
+ * 错误消息映射
+ * @constant {Object} ERROR_MESSAGES - 错误消息配置
+ */
+const ERROR_MESSAGES = {
+  NO_FILE: '请先选择照片',
+  INVALID_TYPE: '请选择图片文件',
+  FILE_TOO_LARGE: `文件大小不能超过${process.env.REACT_APP_MAX_FILE_SIZE || 20}MB`,
+  READ_ERROR: '文件读取失败',
+  UPLOAD_FAILED: '上传失败，请稍后重试',
+  API_NOT_FOUND: '上传接口不存在，请检查API配置',
+  NO_PERMISSION: '没有权限访问该接口',
+  TIMEOUT: '上传超时，请重试',
+  NETWORK_ERROR: '无法连接到服务器，请检查网络连接',
+  CORS_ERROR: '跨域请求被阻止，请检查CORS配置'
+};
+
+// 配置axios
 axios.defaults.withCredentials = true;
-axios.defaults.timeout = UPLOAD_TIMEOUT;
+axios.defaults.timeout = CONFIG.UPLOAD_TIMEOUT;
 
 // 添加请求拦截器
 axios.interceptors.request.use(
   config => {
-    console.log('发送请求:', {
-      url: config.url,
-      method: config.method,
-      headers: config.headers,
-      data: config.data
-    });
+    if (CONFIG.DEBUG) {
+      console.log('发送请求:', {
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+        data: config.data
+      });
+    }
     return config;
   },
   error => {
-    console.error('请求错误:', error);
+    if (CONFIG.DEBUG) {
+      console.error('请求错误:', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -42,23 +67,73 @@ axios.interceptors.request.use(
 // 添加响应拦截器
 axios.interceptors.response.use(
   response => {
-    console.log('收到响应:', {
-      status: response.status,
-      headers: response.headers,
-      data: response.data
-    });
+    if (CONFIG.DEBUG) {
+      console.log('收到响应:', {
+        status: response.status,
+        headers: response.headers,
+        data: response.data
+      });
+    }
     return response;
   },
   error => {
-    console.error('响应错误:', {
-      message: error.message,
-      code: error.code,
-      response: error.response,
-      config: error.config
-    });
+    if (CONFIG.DEBUG) {
+      console.error('响应错误:', {
+        message: error.message,
+        code: error.code,
+        response: error.response,
+        config: error.config
+      });
+    }
     return Promise.reject(error);
   }
 );
+
+/**
+ * 创建文件预览URL
+ * @param {File} file - 文件对象
+ * @returns {Promise<string>} 预览URL
+ */
+const createPreviewUrl = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(ERROR_MESSAGES.READ_ERROR));
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
+ * 验证文件
+ * @param {File} file - 文件对象
+ * @returns {string|null} 错误消息或null
+ */
+const validateFile = (file) => {
+  if (!file) return ERROR_MESSAGES.NO_FILE;
+  if (!CONFIG.ALLOWED_FILE_TYPES.includes(file.type)) return ERROR_MESSAGES.INVALID_TYPE;
+  if (file.size > CONFIG.MAX_FILE_SIZE) return ERROR_MESSAGES.FILE_TOO_LARGE;
+  return null;
+};
+
+/**
+ * 处理API错误
+ * @param {Error} error - 错误对象
+ * @returns {string} 错误消息
+ */
+const handleApiError = (error) => {
+  if (error.response) {
+    const { status, data } = error.response;
+    if (status === 404) return ERROR_MESSAGES.API_NOT_FOUND;
+    if (status === 403) return ERROR_MESSAGES.NO_PERMISSION;
+    return data?.error || `上传失败 (${status})`;
+  }
+  
+  if (error.code === 'ECONNABORTED') return ERROR_MESSAGES.TIMEOUT;
+  if (error.code === 'ERR_NETWORK') return ERROR_MESSAGES.NETWORK_ERROR;
+  if (error.message.includes('CORS')) return ERROR_MESSAGES.CORS_ERROR;
+  
+  return error.message || ERROR_MESSAGES.UPLOAD_FAILED;
+};
 
 /**
  * PhotoUpload组件
@@ -71,48 +146,55 @@ const PhotoUpload = () => {
   const [error, setError] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
 
+  // 组件挂载时检查API可用性
+  useEffect(() => {
+    const checkApiAvailability = async () => {
+      try {
+        const response = await axios.options(`${CONFIG.API_URL}/upload`);
+        if (CONFIG.DEBUG) {
+          console.log('API可用性检查:', response);
+        }
+      } catch (err) {
+        if (CONFIG.DEBUG) {
+          console.error('API可用性检查失败:', err);
+        }
+      }
+    };
+
+    checkApiAvailability();
+  }, []);
+
   /**
    * 处理文件选择
    * @param {Event} event - 文件选择事件
    */
-  const handleFileSelect = (event) => {
+  const handleFileSelect = useCallback(async (event) => {
     const selectedFile = event.target.files[0];
-    if (selectedFile) {
-      // 检查文件类型
-      if (!selectedFile.type.startsWith('image/')) {
-        setError('请选择图片文件');
-        return;
-      }
-      
+    if (!selectedFile) return;
+
+    const validationError = validateFile(selectedFile);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    try {
       setFile(selectedFile);
       setError(null);
-      setAnalysisResult(null); // 清除之前的结果
-      
-      // 创建预览URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
-      reader.onerror = () => {
-        setError('文件读取失败');
-      };
-      reader.readAsDataURL(selectedFile);
+      setAnalysisResult(null);
+      const previewUrl = await createPreviewUrl(selectedFile);
+      setPreview(previewUrl);
+    } catch (err) {
+      setError(err.message);
     }
-  };
+  }, []);
 
   /**
    * 处理文件上传
    */
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     if (!file) {
-      setError('请先选择照片');
-      return;
-    }
-
-    // 检查文件大小
-    const maxSize = parseInt(process.env.REACT_APP_MAX_FILE_SIZE || 20) * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError(`文件大小不能超过${process.env.REACT_APP_MAX_FILE_SIZE || 20}MB`);
+      setError(ERROR_MESSAGES.NO_FILE);
       return;
     }
 
@@ -123,60 +205,29 @@ const PhotoUpload = () => {
     formData.append('photo', file);
 
     try {
-      // 添加调试信息
-      console.log('上传配置:', {
-        url: `${API_URL}/upload`,
-        fileSize: file.size,
-        fileType: file.type,
-        environment: process.env.NODE_ENV
-      });
-      
       const response = await axios({
         method: 'post',
-        url: `${API_URL}/upload`,
+        url: `${CONFIG.API_URL}/upload`,
         data: formData,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        validateStatus: function (status) {
-          return status >= 200 && status < 500;
-        },
-        maxContentLength: maxSize,
-        maxBodyLength: maxSize
+        validateStatus: (status) => status >= 200 && status < 500,
+        maxContentLength: CONFIG.MAX_FILE_SIZE,
+        maxBodyLength: CONFIG.MAX_FILE_SIZE
       });
 
       if (response.status === 200 && response.data.result) {
         setAnalysisResult(response.data.result);
-      } else if (response.status === 404) {
-        throw new Error('上传接口不存在，请检查API配置');
       } else {
         throw new Error(response.data.error || '分析失败');
       }
     } catch (err) {
-      console.error('上传错误:', err);
-      let errorMessage = '上传失败，请稍后重试';
-      
-      if (err.response) {
-        // 服务器返回的错误信息
-        errorMessage = err.response.data?.error || `上传失败 (${err.response.status})`;
-        if (err.response.status === 404) {
-          errorMessage = '上传接口不存在，请检查API配置';
-        } else if (err.response.status === 403) {
-          errorMessage = '没有权限访问该接口';
-        }
-      } else if (err.code === 'ECONNABORTED') {
-        errorMessage = '上传超时，请重试';
-      } else if (err.code === 'ERR_NETWORK') {
-        errorMessage = `无法连接到服务器，请检查网络连接`;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
+      setError(handleApiError(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [file]);
 
   return (
     <Box>
