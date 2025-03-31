@@ -18,6 +18,48 @@ const API_URL = process.env.NODE_ENV === 'production'
   : '/api';  // 开发环境使用相对路径
 const UPLOAD_TIMEOUT = 30000;
 
+// 配置axios默认值
+axios.defaults.withCredentials = true;
+axios.defaults.timeout = UPLOAD_TIMEOUT;
+
+// 添加请求拦截器
+axios.interceptors.request.use(
+  config => {
+    console.log('发送请求:', {
+      url: config.url,
+      method: config.method,
+      headers: config.headers,
+      data: config.data
+    });
+    return config;
+  },
+  error => {
+    console.error('请求错误:', error);
+    return Promise.reject(error);
+  }
+);
+
+// 添加响应拦截器
+axios.interceptors.response.use(
+  response => {
+    console.log('收到响应:', {
+      status: response.status,
+      headers: response.headers,
+      data: response.data
+    });
+    return response;
+  },
+  error => {
+    console.error('响应错误:', {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      config: error.config
+    });
+    return Promise.reject(error);
+  }
+);
+
 /**
  * PhotoUpload组件
  * @returns {JSX.Element} 渲染的照片上传组件
@@ -96,17 +138,13 @@ const PhotoUpload = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: UPLOAD_TIMEOUT,
         validateStatus: function (status) {
           return status >= 200 && status < 500;
         },
-        withCredentials: true,  // 允许跨域请求携带凭证
         maxContentLength: maxSize,
         maxBodyLength: maxSize
       });
 
-      console.log('服务器响应:', response);
-      
       if (response.status === 200 && response.data.result) {
         setAnalysisResult(response.data.result);
       } else if (response.status === 404) {
@@ -123,6 +161,8 @@ const PhotoUpload = () => {
         errorMessage = err.response.data?.error || `上传失败 (${err.response.status})`;
         if (err.response.status === 404) {
           errorMessage = '上传接口不存在，请检查API配置';
+        } else if (err.response.status === 403) {
+          errorMessage = '没有权限访问该接口';
         }
       } else if (err.code === 'ECONNABORTED') {
         errorMessage = '上传超时，请重试';
@@ -133,12 +173,6 @@ const PhotoUpload = () => {
       }
       
       setError(errorMessage);
-      console.error('详细错误信息:', {
-        message: err.message,
-        code: err.code,
-        response: err.response,
-        config: err.config
-      });
     } finally {
       setLoading(false);
     }
