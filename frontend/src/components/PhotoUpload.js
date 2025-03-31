@@ -36,7 +36,8 @@ const ERROR_MESSAGES = {
   NO_PERMISSION: '没有权限访问该接口',
   TIMEOUT: '上传超时，请重试',
   NETWORK_ERROR: '无法连接到服务器，请检查网络连接',
-  CORS_ERROR: '跨域请求被阻止，请检查CORS配置'
+  CORS_ERROR: '跨域请求被阻止，请检查CORS配置',
+  OPTIONS_ERROR: '预检请求失败，请检查CORS配置'
 };
 
 // 配置axios
@@ -131,8 +132,28 @@ const handleApiError = (error) => {
   if (error.code === 'ECONNABORTED') return ERROR_MESSAGES.TIMEOUT;
   if (error.code === 'ERR_NETWORK') return ERROR_MESSAGES.NETWORK_ERROR;
   if (error.message.includes('CORS')) return ERROR_MESSAGES.CORS_ERROR;
+  if (error.message.includes('OPTIONS')) return ERROR_MESSAGES.OPTIONS_ERROR;
   
   return error.message || ERROR_MESSAGES.UPLOAD_FAILED;
+};
+
+/**
+ * 检查API可用性
+ * @returns {Promise<boolean>} API是否可用
+ */
+const checkApiAvailability = async () => {
+  try {
+    // 先发送OPTIONS请求
+    await axios.options(`${CONFIG.API_URL}/upload`);
+    // 再发送GET请求检查接口
+    const response = await axios.get(`${CONFIG.API_URL}/upload`);
+    return response.status === 200;
+  } catch (error) {
+    if (CONFIG.DEBUG) {
+      console.error('API可用性检查失败:', error);
+    }
+    return false;
+  }
 };
 
 /**
@@ -145,23 +166,18 @@ const PhotoUpload = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [apiAvailable, setApiAvailable] = useState(true);
 
   // 组件挂载时检查API可用性
   useEffect(() => {
-    const checkApiAvailability = async () => {
-      try {
-        const response = await axios.options(`${CONFIG.API_URL}/upload`);
-        if (CONFIG.DEBUG) {
-          console.log('API可用性检查:', response);
-        }
-      } catch (err) {
-        if (CONFIG.DEBUG) {
-          console.error('API可用性检查失败:', err);
-        }
+    const checkApi = async () => {
+      const isAvailable = await checkApiAvailability();
+      setApiAvailable(isAvailable);
+      if (!isAvailable) {
+        setError(ERROR_MESSAGES.API_NOT_FOUND);
       }
     };
-
-    checkApiAvailability();
+    checkApi();
   }, []);
 
   /**
@@ -198,6 +214,11 @@ const PhotoUpload = () => {
       return;
     }
 
+    if (!apiAvailable) {
+      setError(ERROR_MESSAGES.API_NOT_FOUND);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -205,6 +226,10 @@ const PhotoUpload = () => {
     formData.append('photo', file);
 
     try {
+      // 先发送OPTIONS请求
+      await axios.options(`${CONFIG.API_URL}/upload`);
+      
+      // 再发送POST请求
       const response = await axios({
         method: 'post',
         url: `${CONFIG.API_URL}/upload`,
@@ -227,7 +252,7 @@ const PhotoUpload = () => {
     } finally {
       setLoading(false);
     }
-  }, [file]);
+  }, [file, apiAvailable]);
 
   return (
     <Box>
@@ -245,7 +270,7 @@ const PhotoUpload = () => {
               variant="contained"
               component="span"
               startIcon={<CloudUploadIcon />}
-              disabled={loading}
+              disabled={loading || !apiAvailable}
             >
               选择照片
             </Button>
@@ -266,7 +291,7 @@ const PhotoUpload = () => {
               variant="contained"
               color="primary"
               onClick={handleUpload}
-              disabled={loading}
+              disabled={loading || !apiAvailable}
               sx={{ mt: 2 }}
             >
               {loading ? <CircularProgress size={24} /> : '开始分析'}
