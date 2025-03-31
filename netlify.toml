@@ -1,4 +1,5 @@
 [build]
+  base = ""
   command = "cd frontend && npm install && npm run build"
   publish = "frontend/build"
   functions = "netlify/functions"
@@ -6,6 +7,7 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_VERSION = "9"
+  CI = "false"
 
 [build.processing]
   skip_processing = false
@@ -30,6 +32,15 @@
 
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' *.netlify.app *.netlify.com; img-src 'self' data: blob: *.netlify.app *.netlify.com;"
 
 [[redirects]]
   from = "/*"
