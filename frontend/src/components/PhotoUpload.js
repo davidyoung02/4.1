@@ -49,6 +49,12 @@ const PhotoUpload = () => {
       return;
     }
 
+    // 检查文件大小
+    if (file.size > 20 * 1024 * 1024) {
+      setError('文件大小不能超过20MB');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -60,8 +66,8 @@ const PhotoUpload = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 30000, // 30秒超时
       });
-      console.log('上传成功:', response.data);
       
       if (response.data.result) {
         setAnalysisResult(response.data.result);
@@ -69,8 +75,15 @@ const PhotoUpload = () => {
         setError('分析结果获取失败');
       }
     } catch (err) {
-      setError('上传失败，请重试');
       console.error('上传错误:', err);
+      if (err.response) {
+        // 服务器返回的错误信息
+        setError(err.response.data.error || '上传失败，请重试');
+      } else if (err.code === 'ECONNABORTED') {
+        setError('上传超时，请重试');
+      } else {
+        setError('网络错误，请检查网络连接');
+      }
     } finally {
       setLoading(false);
     }
