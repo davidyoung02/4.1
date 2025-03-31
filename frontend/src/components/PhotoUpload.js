@@ -8,8 +8,15 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
 import AnalysisResult from './AnalysisResult';
 
-// API路径配置
-const API_URL = '/api';  // 使用相对路径，让Netlify代理处理
+/**
+ * API配置
+ * @constant {string} API_URL - API基础路径
+ * @constant {number} UPLOAD_TIMEOUT - 上传超时时间（毫秒）
+ */
+const API_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://aifacetest11.netlify.app/api'  // 生产环境使用完整URL
+  : '/api';  // 开发环境使用相对路径
+const UPLOAD_TIMEOUT = 30000;
 
 /**
  * PhotoUpload组件
@@ -78,24 +85,32 @@ const PhotoUpload = () => {
       console.log('上传配置:', {
         url: `${API_URL}/upload`,
         fileSize: file.size,
-        fileType: file.type
+        fileType: file.type,
+        environment: process.env.NODE_ENV
       });
       
-      const response = await axios.post(`${API_URL}/upload`, formData, {
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/upload`,
+        data: formData,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: 30000,
+        timeout: UPLOAD_TIMEOUT,
         validateStatus: function (status) {
           return status >= 200 && status < 500;
         },
-        withCredentials: true  // 允许跨域请求携带凭证
+        withCredentials: true,  // 允许跨域请求携带凭证
+        maxContentLength: maxSize,
+        maxBodyLength: maxSize
       });
 
       console.log('服务器响应:', response);
       
       if (response.status === 200 && response.data.result) {
         setAnalysisResult(response.data.result);
+      } else if (response.status === 404) {
+        throw new Error('上传接口不存在，请检查API配置');
       } else {
         throw new Error(response.data.error || '分析失败');
       }
@@ -105,7 +120,10 @@ const PhotoUpload = () => {
       
       if (err.response) {
         // 服务器返回的错误信息
-        errorMessage = err.response.data.error || `上传失败 (${err.response.status})`;
+        errorMessage = err.response.data?.error || `上传失败 (${err.response.status})`;
+        if (err.response.status === 404) {
+          errorMessage = '上传接口不存在，请检查API配置';
+        }
       } else if (err.code === 'ECONNABORTED') {
         errorMessage = '上传超时，请重试';
       } else if (err.code === 'ERR_NETWORK') {
@@ -115,6 +133,12 @@ const PhotoUpload = () => {
       }
       
       setError(errorMessage);
+      console.error('详细错误信息:', {
+        message: err.message,
+        code: err.code,
+        response: err.response,
+        config: err.config
+      });
     } finally {
       setLoading(false);
     }
