@@ -32,7 +32,7 @@
   force = true
   [redirects.headers]
     X-From = "Netlify"
-    Access-Control-Allow-Origin = "https://67ea84a9f544da0008c90b15--aifae.netlify.app"
+    Access-Control-Allow-Origin = "https://67ea87b0bacef7000851fdfa--aifae.netlify.app"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Credentials = "true"
@@ -47,7 +47,7 @@
   force = true
   conditions = {Method = ["OPTIONS"]}
   [redirects.headers]
-    Access-Control-Allow-Origin = "https://67ea84a9f544da0008c90b15--aifae.netlify.app"
+    Access-Control-Allow-Origin = "https://67ea87b0bacef7000851fdfa--aifae.netlify.app"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Credentials = "true"
@@ -88,7 +88,7 @@
 [[headers]]
   for = "/api/*"
   [headers.values]
-    Access-Control-Allow-Origin = "https://67ea84a9f544da0008c90b15--aifae.netlify.app"
+    Access-Control-Allow-Origin = "https://67ea87b0bacef7000851fdfa--aifae.netlify.app"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Credentials = "true"
