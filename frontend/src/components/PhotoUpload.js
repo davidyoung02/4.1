@@ -8,7 +8,9 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
 import AnalysisResult from './AnalysisResult';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NODE_ENV === 'production' 
+  ? '/.netlify/functions'
+  : process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 /**
  * PhotoUpload组件

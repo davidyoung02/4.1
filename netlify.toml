@@ -7,11 +7,8 @@
   node_bundler = "esbuild"
   included_files = ["netlify/functions/**"]
 
-[[redirects]]
-  from = "/.netlify/functions/upload"
-  to = "/.netlify/functions/upload"
-  status = 200
-  force = true
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
 
 [[redirects]]
   from = "/*"

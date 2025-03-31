@@ -5,5 +5,8 @@
   "scripts": {
     "build": "cd frontend && npm run build && cd ../backend && npm install --production",
     "start": "cd backend && NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "lambda-multipart-parser": "^1.0.1"
   }
 } 
