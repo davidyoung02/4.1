@@ -50,7 +50,7 @@ async function findAvailablePort(startPort) {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://aifacetest11.netlify.app',
-  'https://67ea7db7416f4800086d5fe8--aifae.netlify.app',
+  'https://67ea87b0bacef7000851fdfa--aifae.netlify.app',
   'https://aifae.netlify.app',
   /^https:\/\/[a-zA-Z0-9-]+--aifae\.netlify\.app$/ // 匹配所有Netlify预览域名
 ];
@@ -85,11 +85,12 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400'); // 24小时
     res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+    res.header('Vary', 'Origin');
   }
 
   // 处理预检请求
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return res.status(200).end();
   }
 
   next();
@@ -99,6 +100,7 @@ app.use((req, res, next) => {
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
