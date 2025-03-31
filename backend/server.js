@@ -46,26 +46,18 @@ async function findAvailablePort(startPort) {
   return port;
 }
 
-// 创建上传目录
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// 允许的域名列表
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://aifacetest11.netlify.app',
+  'https://67ea7c2f1de8ad0008aede8e--aifae.netlify.app',
+  'https://aifae.netlify.app'
+];
 
-// 安全中间件配置
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
-
-// CORS配置
-const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'https://aifacetest11.netlify.app'
-    ];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+// CORS预检请求处理
+app.options('*', cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('不允许的来源'));
@@ -74,12 +66,42 @@ const corsOptions = {
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  maxAge: 86400 // 24小时
-};
+  maxAge: 86400, // 24小时
+  optionsSuccessStatus: 204
+}));
 
-app.use(cors(corsOptions));
+// CORS配置
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('不允许的来源'));
+    }
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  credentials: true,
+  maxAge: 86400 // 24小时
+}));
+
+// 安全中间件配置
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// 请求体解析中间件
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 创建上传目录
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // 文件上传配置
 const storage = multer.diskStorage({
@@ -127,6 +149,13 @@ app.get('/api', (req, res) => {
 
 // 文件上传路由
 app.post('/api/upload', (req, res) => {
+  // 记录请求信息
+  console.log('收到上传请求:', {
+    origin: req.headers.origin,
+    method: req.method,
+    contentType: req.headers['content-type']
+  });
+
   upload(req, res, function(err) {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
