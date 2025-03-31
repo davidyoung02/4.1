@@ -24,15 +24,15 @@
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
 
-# API代理配置 - 处理OPTIONS预检请求
+# API代理配置
 [[redirects]]
   from = "/api/*"
-  to = "https://aifacetest11.netlify.app/api/:splat"
+  to = "https://aifae.netlify.app/api/:splat"
   status = 200
   force = true
   [redirects.headers]
     X-From = "Netlify"
-    Access-Control-Allow-Origin = "https://67ea87b0bacef7000851fdfa--aifae.netlify.app"
+    Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Credentials = "true"
@@ -42,12 +42,12 @@
 # 专门处理OPTIONS请求
 [[redirects]]
   from = "/api/*"
-  to = "https://aifacetest11.netlify.app/api/:splat"
+  to = "https://aifae.netlify.app/api/:splat"
   status = 200
   force = true
   conditions = {Method = ["OPTIONS"]}
   [redirects.headers]
-    Access-Control-Allow-Origin = "https://67ea87b0bacef7000851fdfa--aifae.netlify.app"
+    Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Credentials = "true"
