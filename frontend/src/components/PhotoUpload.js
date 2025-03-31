@@ -8,9 +8,10 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
 import AnalysisResult from './AnalysisResult';
 
+// API路径配置
 const API_URL = process.env.NODE_ENV === 'production' 
-  ? '/.netlify/functions'
-  : process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  ? 'https://aifacetest11.netlify.app/api'
+  : process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * PhotoUpload组件
@@ -30,13 +31,23 @@ const PhotoUpload = () => {
   const handleFileSelect = (event) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
+      // 检查文件类型
+      if (!selectedFile.type.startsWith('image/')) {
+        setError('请选择图片文件');
+        return;
+      }
+      
       setFile(selectedFile);
       setError(null);
       setAnalysisResult(null); // 清除之前的结果
+      
       // 创建预览URL
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
+      };
+      reader.onerror = () => {
+        setError('文件读取失败');
       };
       reader.readAsDataURL(selectedFile);
     }
@@ -66,10 +77,10 @@ const PhotoUpload = () => {
 
     try {
       // 添加调试信息
-      console.log('环境变量:', {
-        API_URL,
-        NODE_ENV: process.env.NODE_ENV,
-        REACT_APP_API_URL: process.env.REACT_APP_API_URL
+      console.log('上传配置:', {
+        url: `${API_URL}/upload`,
+        fileSize: file.size,
+        fileType: file.type
       });
       
       const response = await axios.post(`${API_URL}/upload`, formData, {
@@ -77,31 +88,34 @@ const PhotoUpload = () => {
           'Content-Type': 'multipart/form-data',
         },
         timeout: 30000,
-        // 添加错误处理配置
         validateStatus: function (status) {
-          return status >= 200 && status < 500; // 默认值
+          return status >= 200 && status < 500;
         }
       });
 
       console.log('服务器响应:', response);
       
-      if (response.data.result) {
+      if (response.status === 200 && response.data.result) {
         setAnalysisResult(response.data.result);
       } else {
-        throw new Error(response.data.error || '分析结果获取失败');
+        throw new Error(response.data.error || '分析失败');
       }
     } catch (err) {
       console.error('上传错误:', err);
+      let errorMessage = '上传失败，请稍后重试';
+      
       if (err.response) {
         // 服务器返回的错误信息
-        setError(err.response.data.error || `上传失败 (${err.response.status})`);
+        errorMessage = err.response.data.error || `上传失败 (${err.response.status})`;
       } else if (err.code === 'ECONNABORTED') {
-        setError('上传超时，请重试');
+        errorMessage = '上传超时，请重试';
       } else if (err.code === 'ERR_NETWORK') {
-        setError(`无法连接到服务器 (${API_URL})，请检查网络连接`);
-      } else {
-        setError(err.message || '上传失败，请稍后重试');
+        errorMessage = `无法连接到服务器，请检查网络连接`;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
