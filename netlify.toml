@@ -8,9 +8,10 @@
   NODE_VERSION = "18"
   NPM_VERSION = "9"
   CI = "false"
+  PUBLIC_URL = "/"
 
 [build.processing]
-  skip_processing = true
+  skip_processing = false
 
 [functions]
   node_bundler = "esbuild"
@@ -18,6 +19,22 @@
 
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
+
+[[redirects]]
+  from = "/static/*"
+  to = "/static/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.json"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = true
 
 [[headers]]
   for = "/static/*"
@@ -28,17 +45,20 @@
   for = "/static/js/*"
   [headers.values]
     Content-Type = "application/javascript"
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/static/css/*"
   [headers.values]
     Content-Type = "text/css"
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/manifest.json"
   [headers.values]
     Content-Type = "application/json"
-    Cache-Control = "public, max-age=0, must-revalidate"
+    Cache-Control = "public, no-cache"
+    Access-Control-Allow-Origin = "*"
 
 [[headers]]
   for = "/*"
@@ -47,10 +67,4 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' *.netlify.app *.netlify.com; img-src 'self' data: blob: *.netlify.app *.netlify.com;"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  force = true 
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' *.netlify.app *.netlify.com; img-src 'self' data: blob: *.netlify.app *.netlify.com;" 
