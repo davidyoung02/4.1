@@ -9,9 +9,7 @@ import axios from 'axios';
 import AnalysisResult from './AnalysisResult';
 
 // API路径配置
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://aifacetest11.netlify.app/api'
-  : process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_URL = '/api';  // 使用相对路径，让Netlify代理处理
 
 /**
  * PhotoUpload组件
@@ -90,7 +88,8 @@ const PhotoUpload = () => {
         timeout: 30000,
         validateStatus: function (status) {
           return status >= 200 && status < 500;
-        }
+        },
+        withCredentials: true  // 允许跨域请求携带凭证
       });
 
       console.log('服务器响应:', response);

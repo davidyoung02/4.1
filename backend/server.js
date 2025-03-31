@@ -50,41 +50,50 @@ async function findAvailablePort(startPort) {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://aifacetest11.netlify.app',
-  'https://67ea7c2f1de8ad0008aede8e--aifae.netlify.app',
-  'https://aifae.netlify.app'
+  'https://67ea7db7416f4800086d5fe8--aifae.netlify.app',
+  'https://aifae.netlify.app',
+  /^https:\/\/[a-zA-Z0-9-]+--aifae\.netlify\.app$/ // 匹配所有Netlify预览域名
 ];
 
-// CORS预检请求处理
-app.options('*', cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('不允许的来源'));
+// 检查域名是否允许
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  return allowedOrigins.some(allowed => {
+    if (allowed instanceof RegExp) {
+      return allowed.test(origin);
     }
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  maxAge: 86400, // 24小时
-  optionsSuccessStatus: 204
-}));
+    return allowed === origin;
+  });
+}
 
-// CORS配置
-app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('不允许的来源'));
-    }
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Length', 'Content-Type'],
-  credentials: true,
-  maxAge: 86400 // 24小时
-}));
+// CORS中间件
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // 记录CORS请求信息
+  console.log('CORS请求:', {
+    origin,
+    method: req.method,
+    path: req.path,
+    headers: req.headers
+  });
+
+  if (isOriginAllowed(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // 24小时
+    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+  }
+
+  // 处理预检请求
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  next();
+});
 
 // 安全中间件配置
 app.use(helmet({
@@ -153,7 +162,8 @@ app.post('/api/upload', (req, res) => {
   console.log('收到上传请求:', {
     origin: req.headers.origin,
     method: req.method,
-    contentType: req.headers['content-type']
+    contentType: req.headers['content-type'],
+    body: req.body
   });
 
   upload(req, res, function(err) {
@@ -161,8 +171,10 @@ app.post('/api/upload', (req, res) => {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ error: '文件大小不能超过20MB' });
       }
+      console.error('Multer错误:', err);
       return res.status(400).json({ error: err.message });
     } else if (err) {
+      console.error('上传错误:', err);
       return res.status(400).json({ error: err.message });
     }
 
